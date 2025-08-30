@@ -24,6 +24,7 @@ app.use(`/cdn`, express.static(process.env.ROOT_CDN_FOLDER));
 app.post('/upload', upload.single('file'), (req, res) => {
   const apiKey = req.header('Authorization');
 
+  // Validate API key
   if (!apiKey || !apiKeys.includes(apiKey)) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
@@ -37,9 +38,15 @@ app.post('/upload', upload.single('file'), (req, res) => {
     return res.status(400).json({ error: 'No file uploaded' });
   }
 
+  // Extract original extension from uploaded file
   const ext = path.extname(req.file.originalname);
-  const uniqueName = `${req.body.folder}-${Date.now()}-${path.basename(req.file.originalname, ext)}${ext}`;
-  const uploadPath = path.join(process.env.ROOT_CDN_FOLDER, req.body.folder, uniqueName);
+
+  // Use custom filename from request, or generate unique fallback
+  const userProvidedName = req.body.filename?.trim();
+  const baseName = userProvidedName || path.basename(req.file.originalname, ext);
+  const finalName = `${baseName}${ext}`;
+
+  const uploadPath = path.join(process.env.ROOT_CDN_FOLDER, folder, finalName);
 
   try {
     const uploadDir = path.dirname(uploadPath);
@@ -48,8 +55,7 @@ app.post('/upload', upload.single('file'), (req, res) => {
     }
 
     fs.writeFileSync(uploadPath, req.file.buffer);
-
-    const fileUrl = `/cdn/${req.body.folder}/${uniqueName}`;
+    const fileUrl = `/cdn/${folder}/${finalName}`;
     res.json({ message: 'Uploaded successfully', fileUrl });
   } catch (err) {
     res.status(500).json({ error: 'Failed to save file' });
