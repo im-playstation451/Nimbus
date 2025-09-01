@@ -24,7 +24,6 @@ app.use(`/cdn`, express.static(process.env.ROOT_CDN_FOLDER));
 app.post('/upload', upload.single('file'), (req, res) => {
   const apiKey = req.header('Authorization');
 
-  // Validate API key
   if (!apiKey || !apiKeys.includes(apiKey)) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
@@ -38,23 +37,28 @@ app.post('/upload', upload.single('file'), (req, res) => {
     return res.status(400).json({ error: 'No file uploaded' });
   }
 
-  // Extract original extension from uploaded file
   const ext = path.extname(req.file.originalname);
 
-  // Use custom filename from request, or generate unique fallback
   const userProvidedName = req.body.filename?.trim();
   const baseName = userProvidedName || path.basename(req.file.originalname, ext);
-  const finalName = `${baseName}${ext}`;
+  
+  const cleanName = baseName.replace(/[^a-zA-Z0-9._-]/g, '');
+  const finalName = `${cleanName}${ext}`;
 
   const uploadPath = path.join(process.env.ROOT_CDN_FOLDER, folder, finalName);
+  const resolvedPath = path.resolve(uploadPath);
+
+  if (!resolvedPath.startsWith(path.resolve(process.env.ROOT_CDN_FOLDER))) {
+    return res.status(400).json({ error: 'Invalid file path' });
+  }
 
   try {
-    const uploadDir = path.dirname(uploadPath);
+    const uploadDir = path.dirname(resolvedPath);
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
 
-    fs.writeFileSync(uploadPath, req.file.buffer);
+    fs.writeFileSync(resolvedPath, req.file.buffer);
     const fileUrl = `/cdn/${folder}/${finalName}`;
     res.json({ message: 'Uploaded successfully', fileUrl });
   } catch (err) {
