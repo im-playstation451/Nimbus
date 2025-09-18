@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
+const cors = require('cors');
 const app = express();
 
 require('dotenv').config();
@@ -19,6 +20,7 @@ try {
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
+app.use(cors());
 app.use(`/cdn`, express.static(process.env.ROOT_CDN_FOLDER));
 
 app.post('/upload', upload.single('file'), (req, res) => {
