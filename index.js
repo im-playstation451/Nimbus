@@ -21,10 +21,9 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 app.use(cors());
-app.use(express.json()); // Add this line to parse JSON request bodies
+app.use(express.json()); 
 app.use(`/cdn`, express.static(process.env.ROOT_CDN_FOLDER));
 
-// Endpoint to handle JSON file updates
 app.post('/update-json', (req, res) => {
   const apiKey = req.header('Authorization');
 
@@ -32,7 +31,7 @@ app.post('/update-json', (req, res) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const { folder, filename, data } = req.body;
+  const { folder, filename, data, id, profilepicture } = req.body;
 
   if (!folder || !allowedFolders.includes(folder)) {
     return res.status(400).json({ error: 'Invalid folder' });
@@ -42,8 +41,8 @@ app.post('/update-json', (req, res) => {
     return res.status(400).json({ error: 'Invalid filename. Must be a .json file.' });
   }
 
-  if (data === undefined) {
-    return res.status(400).json({ error: 'No JSON data provided.' });
+  if (data === undefined && (id === undefined || profilepicture === undefined)) {
+    return res.status(400).json({ error: 'No JSON data or update parameters (id, profilepicture) provided.' });
   }
 
   const cleanFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '');
@@ -60,7 +59,7 @@ app.post('/update-json', (req, res) => {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
 
-    let existingContent = '[]'; // Default to an empty array for user data
+    let existingContent = '[]';
     if (fs.existsSync(resolvedPath)) {
       existingContent = fs.readFileSync(resolvedPath, 'utf8');
     }
@@ -71,23 +70,42 @@ app.post('/update-json', (req, res) => {
       if (Array.isArray(parsedContent)) {
         users = parsedContent;
       } else if (typeof parsedContent === 'object' && parsedContent !== null) {
-        // If the file contains a single object, convert it to an array for new additions
         users = [parsedContent];
       }
     } catch (parseError) {
-      // If file is empty or invalid JSON, 'users' remains an empty array
       console.warn(`Warning: Could not parse existing JSON file at ${resolvedPath}. Initializing as empty array.`);
     }
 
-    // Add the new user data to the array
-    users.push(data);
+    let message = '';
+    if (id && profilepicture) {
+      let userFound = false;
+      users = users.map(userArray => {
+        return userArray.map(user => {
+          if (user.id === id) {
+            user.profilepicture = profilepicture;
+            userFound = true;
+          }
+          return user;
+        });
+      });
+      if (userFound) {
+        message = 'User profile picture updated successfully';
+      } else {
+        message = 'User not found, no profile picture updated';
+      }
+    } else if (data !== undefined) {
+      users.push(data);
+      message = 'User added successfully';
+    } else {
+      return res.status(400).json({ error: 'Invalid request. Provide data for new user or id/profilepicture for update.' });
+    }
 
     fs.writeFileSync(resolvedPath, JSON.stringify(users, null, 2), 'utf8');
     const fileUrl = `/cdn/${folder}/${cleanFilename}`;
-    res.json({ message: 'User added successfully', fileUrl });
+    res.json({ message, fileUrl });
   } catch (err) {
-    console.error('Error adding user to JSON file:', err);
-    res.status(500).json({ error: 'Failed to add user to JSON file' });
+    console.error('Error processing JSON file:', err);
+    res.status(500).json({ error: 'Failed to process JSON file' });
   }
 });
 
