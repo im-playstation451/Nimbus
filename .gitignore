@@ -2,3 +2,4 @@ node_modules
 package-lock.json
 cdn
 bun.lock
+api.json

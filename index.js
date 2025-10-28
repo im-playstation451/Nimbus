@@ -31,7 +31,7 @@ app.post('/update-json', (req, res) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const { folder, filename, data, id, profilepicture } = req.body;
+  const { folder, filename, data, id, profilepicture, updateFields } = req.body;
 
   if (!folder || !allowedFolders.includes(folder)) {
     return res.status(400).json({ error: 'Invalid folder' });
@@ -41,8 +41,8 @@ app.post('/update-json', (req, res) => {
     return res.status(400).json({ error: 'Invalid filename. Must be a .json file.' });
   }
 
-  if (data === undefined && (id === undefined || profilepicture === undefined)) {
-    return res.status(400).json({ error: 'No JSON data or update parameters (id, profilepicture) provided.' });
+  if (data === undefined && (id === undefined || (profilepicture === undefined && updateFields === undefined))) {
+    return res.status(400).json({ error: 'No JSON data or update parameters (id, profilepicture, or updateFields) provided.' });
   }
 
   const cleanFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '');
@@ -64,43 +64,53 @@ app.post('/update-json', (req, res) => {
       existingContent = fs.readFileSync(resolvedPath, 'utf8');
     }
 
-    let users = [];
+    let contentArray = [];
     try {
       const parsedContent = JSON.parse(existingContent);
       if (Array.isArray(parsedContent)) {
-        users = parsedContent;
+        contentArray = parsedContent;
       } else if (typeof parsedContent === 'object' && parsedContent !== null) {
-        users = [parsedContent];
+        contentArray = [parsedContent];
       }
     } catch (parseError) {
       console.warn(`Warning: Could not parse existing JSON file at ${resolvedPath}. Initializing as empty array.`);
     }
 
     let message = '';
-    if (id && profilepicture) {
+    if (id && (profilepicture || updateFields)) {
       let userFound = false;
-      users = users.map(userArray => {
+      contentArray = contentArray.map(userArray => {
         return userArray.map(user => {
           if (user.id === id) {
-            user.profilepicture = profilepicture;
+            if (profilepicture) {
+              user.profilepicture = profilepicture;
+            }
+            if (updateFields) {
+              Object.assign(user, updateFields);
+            }
             userFound = true;
           }
           return user;
         });
       });
       if (userFound) {
-        message = 'User profile picture updated successfully';
+        message = 'User data updated successfully';
       } else {
-        message = 'User not found, no profile picture updated';
+        message = 'User not found, no data updated';
       }
     } else if (data !== undefined) {
-      users.push(data);
-      message = 'User added successfully';
+      if (Array.isArray(data)) {
+        contentArray = data;
+        message = 'Content array replaced successfully';
+      } else {
+        contentArray.push(data);
+        message = 'Data appended successfully';
+      }
     } else {
-      return res.status(400).json({ error: 'Invalid request. Provide data for new user or id/profilepicture for update.' });
+      return res.status(400).json({ error: 'Invalid request. Provide data for new user or id/profilepicture/updateFields for update.' });
     }
 
-    fs.writeFileSync(resolvedPath, JSON.stringify(users, null, 2), 'utf8');
+    fs.writeFileSync(resolvedPath, JSON.stringify(contentArray, null, 2), 'utf8');
     const fileUrl = `/cdn/${folder}/${cleanFilename}`;
     res.json({ message, fileUrl });
   } catch (err) {
