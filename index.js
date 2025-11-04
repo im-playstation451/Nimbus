@@ -17,20 +17,23 @@ try {
   console.error('Error reading API keys:', err.message);
 }
 
+const authenticate = (req, res, next) => {
+  const apiKey = req.header('Authorization');
+  if (!apiKey || !apiKeys.includes(apiKey)) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+};
+
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 app.use(cors());
 app.use(express.json()); 
+app.use(`/cdn/others`, authenticate, express.static(path.join(process.env.ROOT_CDN_FOLDER, 'others')));
 app.use(`/cdn`, express.static(process.env.ROOT_CDN_FOLDER));
 
-app.post('/update-json', (req, res) => {
-  const apiKey = req.header('Authorization');
-
-  if (!apiKey || !apiKeys.includes(apiKey)) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
+app.post('/update-json', authenticate, (req, res) => {
   const { folder, filename, data, id, profilepicture, updateFields } = req.body;
 
   if (!folder || !allowedFolders.includes(folder)) {
@@ -119,13 +122,7 @@ app.post('/update-json', (req, res) => {
   }
 });
 
-app.post('/upload', upload.single('file'), (req, res) => {
-  const apiKey = req.header('Authorization');
-
-  if (!apiKey || !apiKeys.includes(apiKey)) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
+app.post('/upload', authenticate, upload.single('file'), (req, res) => {
   const folder = req.body.folder?.trim();
   if (!folder || !allowedFolders.includes(folder)) {
     return res.status(400).json({ error: 'Invalid folder' });
