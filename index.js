@@ -161,6 +161,36 @@ app.post('/upload', authenticate, upload.single('file'), (req, res) => {
   }
 });
 
+app.delete('/delete-file', authenticate, (req, res) => {
+    const { folder, filename } = req.body;
+
+    if (!folder || !allowedFolders.includes(folder)) {
+        return res.status(400).json({ error: 'Invalid folder' });
+    }
+    if (!filename) {
+        return res.status(400).json({ error: 'Filename is required' });
+    }
+
+    const filePath = path.join(process.env.ROOT_CDN_FOLDER, folder, filename);
+    const resolvedPath = path.resolve(filePath);
+
+    if (!resolvedPath.startsWith(path.resolve(process.env.ROOT_CDN_FOLDER))) {
+        return res.status(400).json({ error: 'Invalid file path' });
+    }
+
+    if (fs.existsSync(resolvedPath)) {
+        try {
+            fs.unlinkSync(resolvedPath);
+            res.json({ message: `File ${filename} deleted successfully from ${folder}` });
+        } catch (err) {
+            console.error('Error deleting file:', err);
+            res.status(500).json({ error: 'Failed to delete file' });
+        }
+    } else {
+        res.status(404).json({ error: 'File not found' });
+    }
+});
+
 const port = process.env.PORT || 3001;
 app.listen(port, () => {
   console.log(`Nimbus is thundering on http://localhost:${port}`);
