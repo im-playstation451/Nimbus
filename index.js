@@ -53,9 +53,10 @@ if (mode === 'os') {
     app.post('/upload', authorize, upload.single('file'), (req, res) => {
         if (!req.file) return res.status(400).json({ error: 'No file' });
         const relativePath = path.relative(path.join(__dirname, 'storage'), req.file.path).replace(/\\/g, '/');
+        const cdnBase = (process.env.CDN_URL || `http://localhost:${process.env.PORT_CDN || 4000}`).replace(/\/$/, '');
         res.status(201).json({
             success: true,
-            cdn_url: `http://localhost:${process.env.PORT_CDN || 4000}/${relativePath}`,
+            cdn_url: `${cdnBase}/${relativePath}`,
             key: relativePath
         });
     });
@@ -69,8 +70,8 @@ if (mode === 'os') {
 
     app.use(cors({ origin: process.env.ALLOWED_DOMAINS || '*' }));
 
-    app.get('/{*path}', (req, res) => {
-        const filePath = path.join(STORAGE_PATH, req.params.path || '');
+    app.use((req, res) => {
+        const filePath = path.join(STORAGE_PATH, req.path);
         if (!fs.existsSync(filePath) || fs.lstatSync(filePath).isDirectory()) {
             return res.status(404).json({ error: 'Not found' });
         }
