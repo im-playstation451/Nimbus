@@ -3,13 +3,21 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
+const crypto = require('crypto');
 require('dotenv').config();
 
 const mode = process.argv[2];
+const KEY_FILE = path.join(__dirname, 'nimbus.key');
+
+if (!fs.existsSync(KEY_FILE)) {
+    const randomKey = crypto.randomBytes(15).toString('base64').slice(0, 15);
+    fs.writeFileSync(KEY_FILE, randomKey, 'utf8');
+    console.log(`Generated new key: ${randomKey}`);
+}
 
 const getValidKey = () => {
     try {
-        return fs.readFileSync(path.join(__dirname, 'nimbus.key'), 'utf8').trim();
+        return fs.readFileSync(KEY_FILE, 'utf8').trim();
     } catch (err) {
         return null;
     }
@@ -51,7 +59,7 @@ if (mode === 'os') {
         });
     });
 
-    app.listen(PORT, () => console.log(`Nimbus Object Storage active on ${PORT}`));
+    app.listen(PORT, () => console.log(`OS active on ${PORT}`));
 
 } else if (mode === 'cdn') {
     const app = express();
@@ -74,8 +82,8 @@ if (mode === 'os') {
         res.sendFile(filePath);
     });
 
-    app.listen(PORT, () => console.log(`Nimbus CDN active on ${PORT}`));
+    app.listen(PORT, () => console.log(`CDN active on ${PORT}`));
 
 } else {
-    console.log('Please specify a mode: npm run os OR npm run cdn');
+    console.log('Run: npm run os (for object storage) OR npm run cdn (for cdn)');
 }
