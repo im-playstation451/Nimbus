@@ -40,7 +40,8 @@ if (mode === 'os') {
             cb(null, targetDir);
         },
         filename: (req, file, cb) => {
-            cb(null, `${Date.now()}-${file.originalname}`);
+            const name = req.query.filename || `${Date.now()}-${file.originalname}`;
+            cb(null, name);
         }
     });
 
