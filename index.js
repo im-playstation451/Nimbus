@@ -75,8 +75,13 @@ if (mode === 'os') {
         if (!fs.existsSync(filePath) || fs.lstatSync(filePath).isDirectory()) {
             return res.status(404).json({ error: 'Not found' });
         }
+
+        const isMutable = req.path.startsWith('/pfp/') || req.path.startsWith('/profiles/');
+
         res.set({
-            'Cache-Control': 'public, max-age=31536000, immutable',
+            'Cache-Control': isMutable
+                ? 'public, max-age=60, must-revalidate'
+                : 'public, max-age=31536000, immutable',
             'X-Content-Type-Options': 'nosniff',
             'X-Powered-By': 'Nimbus-CDN',
             'Access-Control-Allow-Origin': '*'
