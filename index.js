@@ -23,7 +23,7 @@ const getValidKey = () => {
     }
 };
 
-if (mode === 'os') {
+const startOS = () => {
     const app = express();
     const PORT = process.env.PORT_OS || 3000;
 
@@ -62,8 +62,9 @@ if (mode === 'os') {
     });
 
     app.listen(PORT, () => console.log(`OS active on ${PORT}`));
+};
 
-} else if (mode === 'cdn') {
+const startCDN = () => {
     const app = express();
     const PORT = process.env.PORT_CDN || 4000;
     const STORAGE_PATH = path.join(__dirname, 'storage');
@@ -90,7 +91,13 @@ if (mode === 'os') {
     });
 
     app.listen(PORT, () => console.log(`CDN active on ${PORT}`));
+};
 
+if (mode === 'os') {
+    startOS();
+} else if (mode === 'cdn') {
+    startCDN();
 } else {
-    console.log('Run: npm run os (for object storage) OR npm run cdn (for cdn)');
+    startOS();
+    startCDN();
 }

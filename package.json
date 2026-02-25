@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "os": "node index.js os",
-    "cdn": "node index.js cdn"
+    "cdn": "node index.js cdn",
+    "start": "node index.js os & node index.js cdn"
   },
   "repository": {
     "type": "git",
